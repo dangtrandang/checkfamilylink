@@ -1,35 +1,22 @@
 # Family Link Lock Cleanup Magisk Module
 
-This is a Magisk module designed for rooted Android devices to handle issues related to overlay, bubbles, or task persistence when Google Family Link locks the device.
-
-## Why this is needed
-
-When Google Family Link locks the device, Google Play Services log:
-- **Lock**: `TimeLimitCheckingIntent: locking device`
-- **Unlock**: `TimeLimitCheckingIntent: unlocking device`
-
-Some apps might still keep their tasks alive or display overlays/bubbles. This module listens to logcat continuously to capture these logs and cleanly routes the device to the Home screen, force-stops user apps, and removes recent tasks.
+This is a Magisk module designed for rooted Android devices to handle issues related to overlay, bubbles, or task persistence when Google Family Link locks the device (bedtime, daily limit, or parent manual lock).
 
 ---
 
 ## Features
 
-- **Automated Startup**: Starts automatically on boot (`service.sh` runs late-start service mode as root).
+- **Automated Background Service**: Starts automatically on boot (`service.sh` runs late-start service mode as root).
 - **Precise Log Filtering**: Watches for log lines containing BOTH `TimeLimitCheckingIntent` and `locking device` / `unlocking device` to avoid false triggers on generic text.
 - **State Machine Debouncing**: Tracks state (`LOCKED` / `UNLOCKED`) via `/data/adb/familylock_state` (safely initialized on boot). This ensures that cleanup runs exactly once per lock cycle, even if Google Play Services logs the event multiple times.
-- **Robust Cleanup Logic**:
-  1. Sends the device back to the Home screen (`input keyevent KEYCODE_HOME`).
-  2. Sleeps for 1 second to stabilize the Home screen transition.
-  3. Force-stops all third-party applications (excluding whitelisted components).
-  4. Suspends all third-party packages using `pm suspend` to grey them out and block Game Turbo / floating window bypasses.
-- **Exclusion List**: Restricts stopping to third-party user apps only (`pm list packages -3`) and whitelists critical components:
-  - `com.google.android.gms` (GMS)
-  - `com.google.android.gsf` (Google Services Framework)
-  - `com.android.vending` (Google Play Store)
-  - `com.google.android.apps.kids.familylinkhelper` (Family Link Helper)
-  - `com.miui.home` (MIUI Launcher - customize in scripts if using a different launcher)
-  - `com.familylock.module` (Module exclusion)
-- **Logcat Watcher**: Continuously monitors system logcat. If the logcat process dies, it automatically restarts within 5 seconds.
+- **Double-Layer Lock Protection**:
+  When the device is locked, all non-whitelisted third-party apps will be:
+  1. Terminated (`am force-stop`).
+  2. Suspended (`pm suspend`), greying out their launcher icons and completely blocking floating windows / Game Turbo bypasses.
+  3. Firewalled (`iptables` / `ip6tables` drop rules targeting the app's Linux UID), blocking internet at the kernel level.
+- **Whitelisting System**: System default critical packages (GMS, Play Store, GSF, Family Link Helper, MIUI Home launcher) are always excluded. You can configure custom whitelisted apps (e.g. Duolingo) dynamically.
+- **Local Web UI Control Panel**: Spawns a background mini web server using Magisk's built-in `busybox httpd` on port `8080` (uses < 2MB RAM and 0% CPU when idle).
+- **Launcher App Icon Shortcut**: Chrome -> "Add to Home Screen" turns the Web UI into a full-screen application on your launcher.
 
 ---
 
@@ -38,13 +25,30 @@ Some apps might still keep their tasks alive or display overlays/bubbles. This m
 ```text
 checkfamilylink/
 ├── module.prop         # Module information and metadata
-├── service.sh          # Late-start service to monitor logcat in the background
-├── cleanup.sh          # Called when "locking device" is detected (forces stop & suspends apps)
-├── unlock.sh           # Called when "unlocking device" is detected (unsuspends apps)
+├── service.sh          # Late-start service to monitor logcat and start Web UI server
+├── cleanup.sh          # Called when "locking device" is detected (forces stop, suspends, & firewalls apps)
+├── unlock.sh           # Called when "unlocking device" is detected (unsuspends and unblocks apps)
 ├── post-fs-data.sh     # Runs during post-fs-data hook (logs boot initialization)
-├── uninstall.sh        # Runs when the module is removed
+├── uninstall.sh        # Runs when the module is removed (kills server and cleans config files)
+├── webroot/
+│   ├── index.html      # Premium dark-theme HTML/JS whitelist controller Web UI
+│   └── cgi-bin/
+│       └── api.sh      # CGI API to query installed packages and toggle whitelist status
 └── README.md           # This documentation
 ```
+
+---
+
+## How to Access & Manage Whitelist (Web UI)
+
+1. Open Chrome on the device and navigate to `http://localhost:8080`.
+2. A premium list of all user-installed applications will be displayed. Toggle the switch to whitelist/allow an app to run during lock.
+3. **Add Launcher Icon Shortcut**:
+   - In Chrome, click the three vertical dots (menu) in the top-right corner.
+   - Select **"Add to Home screen"** (Thêm vào màn hình chính).
+   - Chrome will place an icon on your home screen. Tapping it opens the panel in full-screen, acting exactly like a native app.
+
+*Note: Custom whitelists are saved dynamically in `/data/adb/familylock_whitelist.txt`.*
 
 ---
 
@@ -55,21 +59,6 @@ All logs are tagged with `FamilyLockModule`. You can watch the module's actions 
 ```bash
 adb shell "logcat | grep FamilyLockModule"
 ```
-
-### Key Log Events to Expect
-- On Lock (only on transition from UNLOCKED to LOCKED):
-  `FamilyLockModule: MATCH FOUND: locking device`
-  `FamilyLockModule: Transition to LOCKED state`
-  `FamilyLockModule: FamilyLockModule: LOCK DETECTED`
-  `FamilyLockModule: FamilyLockModule: CLEANUP START`
-  `FamilyLockModule: Force-stopping and suspending user applications...`
-  `FamilyLockModule: Stopping and suspending: com.example.userapp`
-  `FamilyLockModule: FamilyLockModule: CLEANUP COMPLETE`
-- On Unlock (only on transition from LOCKED to UNLOCKED):
-  `FamilyLockModule: MATCH FOUND: unlocking device`
-  `FamilyLockModule: Transition to UNLOCKED state`
-  `FamilyLockModule: FamilyLockModule: UNLOCK DETECTED`
-  `FamilyLockModule: Unsuspending user applications...`
 
 ---
 

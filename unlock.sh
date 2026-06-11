@@ -6,25 +6,20 @@ TAG="FamilyLockModule"
 
 log -t "$TAG" "FamilyLockModule: UNLOCK DETECTED"
 
-# Unsuspend all user applications (Third-party only via -3)
-EXCLUDED_PACKAGES="com.google.android.gms com.google.android.apps.kids.familylinkhelper com.miui.home com.familylock.module com.android.vending com.google.android.gsf"
-
-log -t "$TAG" "Unsuspending user applications..."
+# 1. Unsuspend all user applications (Third-party only via -3)
+# 2. Clear iptables firewall drop rules for user app UIDs
+log -t "$TAG" "Unsuspending and restoring internet access for user applications..."
 packages=$(pm list packages -3 | cut -d: -f2)
 for pkg in $packages; do
     [ -z "$pkg" ] && continue
     
-    # Check exclusion list
-    exclude=false
-    for expkg in $EXCLUDED_PACKAGES; do
-        if [ "$pkg" = "$expkg" ]; then
-            exclude=true
-            break
-        fi
-    done
+    # Always try to unsuspend the package (safe to run even if not suspended)
+    pm unsuspend "$pkg" >/dev/null 2>&1
     
-    if [ "$exclude" = false ]; then
-        log -t "$TAG" "Unsuspending: $pkg"
-        pm unsuspend "$pkg" >/dev/null 2>&1
+    # Always try to remove firewall drop rules
+    uid=$(stat -c %u "/data/data/$pkg" 2>/dev/null)
+    if [ -n "$uid" ]; then
+        iptables -D OUTPUT -m owner --uid-owner "$uid" -j DROP >/dev/null 2>&1
+        ip6tables -D OUTPUT -m owner --uid-owner "$uid" -j DROP >/dev/null 2>&1
     fi
 done

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Link Lock Cleanup Admin</title>
+    <!-- Outfit Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #08090b;
+            --card-bg: rgba(18, 19, 23, 0.7);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-color: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            padding: 24px 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 540px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f3f4f6 30%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        p.subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 14px 16px;
+            padding-left: 44px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: 15px;
+            outline: none;
+            backdrop-filter: blur(16px);
+            transition: all 0.25s ease;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            fill: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .card-list {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        /* Customize Scrollbar */
+        .card-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .card-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .card-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .card-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .app-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 12px;
+            border-radius: 12px;
+            transition: background-color 0.2s ease;
+        }
+
+        .app-item:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .app-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0; /* Ensures text truncation works */
+        }
+
+        .app-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-color);
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .app-details {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .app-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .app-package {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+
+        /* Toggle Switch styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #e5e7eb;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+            border-color: transparent;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: #ffffff;
+        }
+
+        input:checked + .slider {
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .loading-overlay {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            width: 100%;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: rgba(18, 19, 23, 0.9);
+            border: 1px solid var(--border-color);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(16px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Family Lock Cleanup</h1>
+            <p class="subtitle">Magisk Module Whitelist Control Panel</p>
+        </header>
+
+        <div class="search-box">
+            <svg viewBox="0 0 24 24">
+                <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/>
+            </svg>
+            <input type="text" id="search" placeholder="Search applications..." autocomplete="off">
+        </div>
+
+        <main id="app-container" class="card-list">
+            <div class="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast">Status updated</div>
+
+    <script>
+        const appContainer = document.getElementById('app-container');
+        const searchInput = document.getElementById('search');
+        const toast = document.getElementById('toast');
+        let allApps = [];
+
+        // Fetch installed packages on load
+        async function fetchApps() {
+            try {
+                const response = await fetch('/cgi-bin/api.sh?action=list');
+                const data = await response.json();
+                if (data.status === 'success') {
+                    allApps = data.apps;
+                    renderApps(allApps);
+                } else {
+                    showError('Failed to fetch applications.');
+                }
+            } catch (err) {
+                console.error(err);
+                showError('Could not connect to API server.');
+            }
+        }
+
+        // Get readable app name from package name
+        function getAppLabel(pkg) {
+            // Remove common prefixes and clean up
+            let parts = pkg.split('.');
+            let name = parts[parts.length - 1];
+            if (name === 'android' && parts.length > 1) {
+                name = parts[parts.length - 2];
+            }
+            // Capitalize
+            name = name.charAt(0).toUpperCase() + name.slice(1);
+            // Replace dashes/underscores
+            name = name.replace(/[-_]/g, ' ');
+            // Special mappings
+            if (pkg.includes('com.zing.zalo')) return 'Zalo';
+            if (pkg.includes('com.vng.playtogether')) return 'Play Together';
+            if (pkg.includes('com.topjohnwu.magisk')) return 'Magisk';
+            if (pkg.includes('com.vng.inputmethod.labankey')) return 'Laban Key';
+            if (pkg.includes('youtube.kids')) return 'YouTube Kids';
+            return name;
+        }
+
+        // Render the apps list
+        function renderApps(apps) {
+            appContainer.innerHTML = '';
+            
+            if (apps.length === 0) {
+                appContainer.innerHTML = '<div class="empty-state">No third-party apps found.</div>';
+                return;
+            }
+
+            apps.forEach(app => {
+                const label = getAppLabel(app.package);
+                const letter = label.charAt(0);
+                
+                const item = document.createElement('div');
+                item.className = 'app-item';
+                item.innerHTML = `
+                    <div class="app-info">
+                        <div class="app-icon">${letter}</div>
+                        <div class="app-details">
+                            <span class="app-name">${label}</span>
+                            <span class="app-package">${app.package}</span>
+                        </div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" ${app.whitelisted ? 'checked' : ''} onchange="toggleApp('${app.package}', this)">
+                        <span class="slider"></span>
+                    </label>
+                `;
+                appContainer.appendChild(item);
+            });
+        }
+
+        // Search/Filter function
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allApps.filter(app => {
+                const label = getAppLabel(app.package).toLowerCase();
+                return label.includes(query) || app.package.toLowerCase().includes(query);
+            });
+            renderApps(filtered);
+        });
+
+        // Toggle whitelist action
+        async function toggleApp(packageName, checkbox) {
+            checkbox.disabled = true;
+            try {
+                const response = await fetch(`/cgi-bin/api.sh?action=toggle&package=${packageName}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Update local list state
+                    const app = allApps.find(a => a.package === packageName);
+                    if (app) {
+                        app.whitelisted = (data.action === 'added');
+                    }
+                    showToast(`${getAppLabel(packageName)} ${data.action === 'added' ? 'added to Whitelist' : 'removed from Whitelist'}`);
+                } else {
+                    checkbox.checked = !checkbox.checked; // Revert switch UI
+                    showToast(data.message || 'Error updating package.');
+                }
+            } catch (err) {
+                console.error(err);
+                checkbox.checked = !checkbox.checked; // Revert switch UI
+                showToast('Failed to connect to system API.');
+            } finally {
+                checkbox.disabled = false;
+            }
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function showError(msg) {
+            appContainer.innerHTML = `<div class="empty-state" style="color:#ef4444;">${msg}</div>`;
+        }
+
+        // Load data on start
+        window.addEventListener('DOMContentLoaded', fetchApps);
+    </script>
+</body>
+</html>

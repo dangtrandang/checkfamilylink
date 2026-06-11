@@ -1,0 +1,96 @@
+#!/system/bin/sh
+# Family Link Lock Cleanup - api.sh CGI Script
+# Handles HTTP API requests for whitelisting applications
+
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo "Cache-Control: no-cache, no-store, must-revalidate"
+echo ""
+
+# Parse QUERY_STRING parameters (e.g. action=list or action=toggle&package=com.zing.zalo)
+ACTION=$(echo "$QUERY_STRING" | grep -oE "action=[a-zA-Z0-9_]+" | cut -d= -f2)
+PACKAGE=$(echo "$QUERY_STRING" | grep -oE "package=[a-zA-Z0-9._]+" | cut -d= -f2)
+
+WHITELIST_FILE="/data/adb/familylock_whitelist.txt"
+
+# Whitelist default system packages
+EXCLUDED_PACKAGES="com.google.android.gms com.google.android.apps.kids.familylinkhelper com.miui.home com.familylock.module com.android.vending com.google.android.gsf"
+
+is_whitelisted() {
+    # Check default exclusion packages
+    for expkg in $EXCLUDED_PACKAGES; do
+        if [ "$1" = "$expkg" ]; then
+            return 0 # true
+        fi
+    done
+    
+    # Check user-configured whitelist
+    if [ -f "$WHITELIST_FILE" ]; then
+        if grep -q "^$1$" "$WHITELIST_FILE"; then
+            return 0 # true
+        fi
+    fi
+    return 1 # false
+}
+
+# Ensure whitelist file exists
+touch "$WHITELIST_FILE"
+
+if [ "$ACTION" = "list" ]; then
+    # Return JSON containing all user-installed apps and their whitelist status
+    echo "{"
+    echo "  \"status\": \"success\","
+    echo "  \"apps\": ["
+    
+    first=true
+    # Query installed third-party apps
+    pm list packages -3 | cut -d: -f2 | sort | while read -r pkg; do
+        [ -z "$pkg" ] && continue
+        
+        if [ "$first" = true ]; then
+            first=false
+        else
+            echo ","
+        fi
+        
+        if is_whitelisted "$pkg"; then
+            whitelisted="true"
+        else
+            whitelisted="false"
+        fi
+        
+        echo "    { \"package\": \"$pkg\", \"whitelisted\": $whitelisted }"
+    done
+    
+    echo "  ]"
+    echo "}"
+
+elif [ "$ACTION" = "toggle" ] && [ -n "$PACKAGE" ]; then
+    # Toggle user-configured whitelist status for a package
+    # Check if it is a system default package (cannot toggle/remove system packages)
+    is_system=false
+    for expkg in $EXCLUDED_PACKAGES; do
+        if [ "$PACKAGE" = "$expkg" ]; then
+            is_system=true
+            break
+        fi
+    done
+    
+    if [ "$is_system" = false ]; then
+        if grep -q "^$PACKAGE$" "$WHITELIST_FILE"; then
+            # Remove from whitelist
+            grep -v "^$PACKAGE$" "$WHITELIST_FILE" > "${WHITELIST_FILE}.tmp"
+            mv "${WHITELIST_FILE}.tmp" "$WHITELIST_FILE"
+            status="removed"
+        else
+            # Add to whitelist
+            echo "$PACKAGE" >> "$WHITELIST_FILE"
+            status="added"
+        fi
+        echo "{ \"status\": \"success\", \"package\": \"$PACKAGE\", \"action\": \"$status\" }"
+    else
+        echo "{ \"status\": \"error\", \"message\": \"Cannot modify system default packages\" }"
+    fi
+else
+    echo "{ \"status\": \"error\", \"message\": \"Invalid action or missing package parameters\" }"
+fi

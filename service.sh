@@ -22,7 +22,25 @@ fi
 STATE_FILE="/data/adb/familylock_state"
 echo "UNLOCKED" > "$STATE_FILE"
 
-# Make sure all user applications are unsuspended on boot startup to prevent lock-out state
+# Start the local Web UI server on port 8080
+BUSYBOX="/data/adb/magisk/busybox"
+if [ ! -f "$BUSYBOX" ]; then
+    BUSYBOX="busybox"
+fi
+
+if [ -d "$MODDIR/webroot" ]; then
+    log -t "$TAG" "Starting Web UI server on port 8080..."
+    # Ensure correct permissions for the webroot and cgi-bin
+    chmod -R 755 "$MODDIR/webroot"
+    # Kill any existing server on port 8080 to prevent conflicts
+    pkill -f "httpd -p 8080" >/dev/null 2>&1
+    # Start server
+    $BUSYBOX httpd -p 8080 -h "$MODDIR/webroot" >/dev/null 2>&1
+else
+    log -t "$TAG" "Warning: webroot not found at $MODDIR/webroot"
+fi
+
+# Reset boot state: unsuspend all apps and flush rules to prevent lockout
 if [ -f "$MODDIR/unlock.sh" ]; then
     log -t "$TAG" "Initializing boot state: unsuspending all applications..."
     sh "$MODDIR/unlock.sh" &
