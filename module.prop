@@ -1,0 +1,6 @@
+id=familylink-cleanup
+name=Family Link Lock Cleanup
+version=v1.0.0
+versionCode=100
+author=Antigravity
+description=Cleans up user applications and recent tasks upon Google Family Link device lock.
