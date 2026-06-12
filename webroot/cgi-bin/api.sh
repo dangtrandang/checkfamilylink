@@ -82,10 +82,18 @@ elif [ "$ACTION" = "toggle" ] && [ -n "$PACKAGE" ]; then
             grep -v "^$PACKAGE$" "$WHITELIST_FILE" > "${WHITELIST_FILE}.tmp"
             mv "${WHITELIST_FILE}.tmp" "$WHITELIST_FILE"
             status="removed"
+            # Immediately block overlays/bubbles (including custom MIUI pop-ups)
+            appops set "$PACKAGE" SYSTEM_ALERT_WINDOW ignore >/dev/null 2>&1
+            appops set "$PACKAGE" 10020 ignore >/dev/null 2>&1
+            appops set "$PACKAGE" 10021 ignore >/dev/null 2>&1
         else
             # Add to whitelist
             echo "$PACKAGE" >> "$WHITELIST_FILE"
             status="added"
+            # Immediately restore overlays/bubbles to default
+            appops set "$PACKAGE" SYSTEM_ALERT_WINDOW default >/dev/null 2>&1
+            appops set "$PACKAGE" 10020 default >/dev/null 2>&1
+            appops set "$PACKAGE" 10021 default >/dev/null 2>&1
         fi
         echo "{ \"status\": \"success\", \"package\": \"$PACKAGE\", \"action\": \"$status\" }"
     else

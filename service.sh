@@ -40,9 +40,42 @@ else
     log -t "$TAG" "Warning: webroot not found at $MODDIR/webroot"
 fi
 
-# Permanent Bubble Block: Disable notification bubbles globally on boot
+# Permanent Bubble & Overlay Block: Disable bubbles and overlays globally on boot
 log -t "$TAG" "Disabling notification bubbles globally..."
 settings put secure notification_bubbles 0 >/dev/null 2>&1
+
+log -t "$TAG" "Initializing AppOps overlay restrictions..."
+EXCLUDED_PACKAGES="com.google.android.gms com.google.android.apps.kids.familylinkhelper com.miui.home com.familylock.module com.android.vending com.google.android.gsf"
+WHITELIST_FILE="/data/adb/familylock_whitelist.txt"
+if [ -f "$WHITELIST_FILE" ]; then
+    while read -r line; do
+        line=$(echo "$line" | xargs)
+        [ -z "$line" ] && continue
+        echo "$line" | grep -q "^#" && continue
+        EXCLUDED_PACKAGES="$EXCLUDED_PACKAGES $line"
+    done < "$WHITELIST_FILE"
+fi
+
+packages=$(pm list packages -3 | cut -d: -f2)
+for pkg in $packages; do
+    [ -z "$pkg" ] && continue
+    exclude=false
+    for expkg in $EXCLUDED_PACKAGES; do
+        if [ "$pkg" = "$expkg" ]; then
+            exclude=true
+            break
+        fi
+    done
+    if [ "$exclude" = false ]; then
+        appops set "$pkg" SYSTEM_ALERT_WINDOW ignore >/dev/null 2>&1
+        appops set "$pkg" 10020 ignore >/dev/null 2>&1
+        appops set "$pkg" 10021 ignore >/dev/null 2>&1
+    else
+        appops set "$pkg" SYSTEM_ALERT_WINDOW default >/dev/null 2>&1
+        appops set "$pkg" 10020 default >/dev/null 2>&1
+        appops set "$pkg" 10021 default >/dev/null 2>&1
+    fi
+done
 
 # Reset boot state: unsuspend all apps and flush rules to prevent lockout
 if [ -f "$MODDIR/unlock.sh" ]; then

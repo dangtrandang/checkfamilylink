@@ -54,6 +54,11 @@ for pkg in $packages; do
     if [ "$exclude" = false ]; then
         log -t "$TAG" "Locking app: $pkg"
         
+        # Block overlays/bubbles (including custom MIUI pop-ups)
+        appops set "$pkg" SYSTEM_ALERT_WINDOW ignore >/dev/null 2>&1
+        appops set "$pkg" 10020 ignore >/dev/null 2>&1
+        appops set "$pkg" 10021 ignore >/dev/null 2>&1
+        
         # Force-stop
         am force-stop "$pkg" >/dev/null 2>&1
         

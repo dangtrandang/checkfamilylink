@@ -7,7 +7,12 @@
 ## Tính năng nổi bật
 
 - **Khởi động tự động**: Tự khởi động ngầm sau khi thiết bị boot hoàn tất dưới quyền root.
-- **Vô hiệu hóa bong bóng chat vĩnh viễn**: Để tránh việc con lách luật đếm giờ 15 phút của Zalo bằng cách nhắn tin qua bong bóng chat SystemUI (Android không tính thời gian vào app khi dùng bong bóng), module sẽ khóa cứng tính năng bong bóng chat trên toàn hệ thống (`notification_bubbles = 0`). Điều này buộc con phải mở trực tiếp Zalo để nhắn tin, giúp Family Link đếm giờ chuẩn xác 100%.
+- **Khóa cứng bong bóng chat và cửa sổ nổi (MIUI/HyperOS)**: 
+  Để tránh việc con lách luật đếm giờ 15 phút của Zalo bằng cách nhắn tin qua bong bóng chat hoặc cửa sổ nổi (do Android/MIUI không tính thời gian vào app khi dùng cửa sổ nổi), module áp dụng khóa kép cực kỳ triệt để:
+  1. Vô hiệu hóa bong bóng chat toàn hệ thống (`notification_bubbles = 0`).
+  2. Vô hiệu hóa quyền vẽ lên ứng dụng khác/cửa sổ nổi (`SYSTEM_ALERT_WINDOW`) đối với tất cả ứng dụng ngoài Whitelist.
+  3. Khóa cứng các quyền cửa sổ nổi tùy biến của riêng hệ điều hành MIUI/HyperOS (AppOps `10020` và `10021`).
+  Điều này triệt tiêu hoàn toàn khả năng Zalo hiển thị bong bóng tròn trên màn hình, buộc con phải mở trực tiếp Zalo dưới dạng toàn màn hình để nhắn tin, giúp Family Link đếm giờ chuẩn xác 100%. Khi cha mẹ đưa một ứng dụng vào Whitelist qua Web UI, quyền cửa sổ nổi sẽ được tự động khôi phục về mặc định ngay lập tức.
 - **Cơ chế tự sửa lỗi (Self-Healing Watcher)**: Kết hợp State Machine và debounce thời gian (> 10s). Nếu lỡ nhịp log mở khóa trước đó khiến trạng thái bị lệch, lần khóa tiếp theo vẫn kích hoạt dọn dẹp bình thường, không lo bị kẹt trạng thái.
 - **Hệ thống khóa kép bảo mật cao (Double-Layer Lock)**:
   Khi thiết bị khóa, tất cả các ứng dụng người dùng cài thêm (trừ danh sách được phép) sẽ bị:
