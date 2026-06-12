@@ -304,6 +304,13 @@
     </style>
 </head>
 <body>
+    <!-- Inactivity Session Countdown & Lock Button -->
+    <div id="session-status" style="position: fixed; top: 16px; right: 16px; display: none; align-items: center; gap: 8px; background-color: var(--card-bg); border: 1px solid var(--border-color); padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; backdrop-filter: blur(16px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;">
+        <span style="color: var(--text-secondary);">🔒 Autolock: <span id="countdown-num" style="color: var(--accent-color); font-weight: 600;">30</span>s</span>
+        <span style="color: var(--border-color);">|</span>
+        <button id="lock-btn" style="background: none; border: none; color: var(--danger-color); cursor: pointer; font-weight: 600; font-size: 12px; font-family: var(--font-family); outline: none;">Lock</button>
+    </div>
+
     <!-- Security Auth Overlay -->
     <div id="auth-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #08090b; display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 24px;">
         <div style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 32px 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; text-align: center; backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);">
@@ -346,6 +353,9 @@
         const passwordInput = document.getElementById('password-input');
         const authBtn = document.getElementById('auth-btn');
         const authError = document.getElementById('auth-error');
+        const sessionStatus = document.getElementById('session-status');
+        const countdownNum = document.getElementById('countdown-num');
+        const lockBtn = document.getElementById('lock-btn');
         let allApps = [];
 
         // Check authentication state in sessionStorage with 30s inactivity check
@@ -354,11 +364,21 @@
             const lastActive = sessionStorage.getItem('familylock_last_active') || '0';
             if (pw && (Date.now() - parseInt(lastActive) > 30000)) {
                 // Expired
-                sessionStorage.removeItem('familylock_pw');
-                sessionStorage.removeItem('familylock_last_active');
+                logout(true);
                 return '';
             }
             return pw;
+        }
+
+        // Clear session and lock the panel
+        function logout(isAuto = false) {
+            sessionStorage.removeItem('familylock_pw');
+            sessionStorage.removeItem('familylock_last_active');
+            passwordInput.value = '';
+            authOverlay.style.display = 'flex';
+            sessionStatus.style.display = 'none';
+            appContainer.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+            showToast(isAuto ? 'Session expired. Please log in again.' : 'Session locked.');
         }
 
         // Reset the inactivity timer on user action
@@ -373,21 +393,27 @@
             document.addEventListener(evt, resetActiveTimer, { passive: true });
         });
 
-        // Background checker to log out if inactive for more than 30s
+        // Background checker to log out if inactive for more than 30s, and update countdown
         setInterval(() => {
             const pw = sessionStorage.getItem('familylock_pw');
             if (pw) {
                 const lastActive = parseInt(sessionStorage.getItem('familylock_last_active') || '0');
-                if (Date.now() - lastActive > 30000) {
-                    sessionStorage.removeItem('familylock_pw');
-                    sessionStorage.removeItem('familylock_last_active');
-                    passwordInput.value = '';
-                    authOverlay.style.display = 'flex';
-                    appContainer.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
-                    showToast('Session expired. Please log in again.');
+                const elapsed = Date.now() - lastActive;
+                const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
+                
+                sessionStatus.style.display = 'flex';
+                countdownNum.textContent = remaining;
+
+                if (elapsed > 30000) {
+                    logout(true);
                 }
+            } else {
+                sessionStatus.style.display = 'none';
             }
         }, 1000);
+
+        // Bind Lock Button Click
+        lockBtn.addEventListener('click', () => logout(false));
 
         // Fetch installed packages on load
         async function fetchApps() {
