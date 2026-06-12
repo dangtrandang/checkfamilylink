@@ -438,7 +438,7 @@
             appContainer.innerHTML = '';
             
             if (apps.length === 0) {
-                appContainer.innerHTML = '<div class="empty-state">No third-party apps found.</div>';
+                appContainer.innerHTML = '<div class="empty-state">No apps requesting overlay permission found.</div>';
                 return;
             }
 
@@ -446,6 +446,10 @@
                 const label = getAppLabel(app.package);
                 const letter = label.charAt(0);
                 
+                const statusBadge = app.enabled 
+                    ? `<span style="font-size: 11px; padding: 2px 8px; border-radius: 20px; background-color: rgba(16, 185, 129, 0.15); color: var(--success-color); font-weight: 600; margin-top: 4px; display: inline-block; width: fit-content;">🟢 Active</span>` 
+                    : `<span style="font-size: 11px; padding: 2px 8px; border-radius: 20px; background-color: rgba(239, 68, 68, 0.15); color: var(--danger-color); font-weight: 600; margin-top: 4px; display: inline-block; width: fit-content;">🔴 Blocked</span>`;
+
                 const item = document.createElement('div');
                 item.className = 'app-item';
                 item.innerHTML = `
@@ -454,9 +458,10 @@
                         <div class="app-details">
                             <span class="app-name">${label}</span>
                             <span class="app-package">${app.package}</span>
+                            ${statusBadge}
                         </div>
                     </div>
-                    <label class="switch">
+                    <label class="switch" title="Allow/Block overlay capability">
                         <input type="checkbox" ${app.whitelisted ? 'checked' : ''} onchange="toggleApp('${app.package}', this)">
                         <span class="slider"></span>
                     </label>
@@ -488,7 +493,9 @@
                     if (app) {
                         app.whitelisted = (data.action === 'added');
                     }
-                    showToast(`${getAppLabel(packageName)} ${data.action === 'added' ? 'added to Whitelist' : 'removed from Whitelist'}`);
+                    showToast(`${getAppLabel(packageName)} ${data.action === 'added' ? 'allowed overlay' : 'blocked overlay'}`);
+                    // Trigger a delayed fetch to let the system AppOps state update and refresh the UI badges
+                    setTimeout(fetchApps, 500);
                 } else {
                     checkbox.checked = !checkbox.checked;
                     showToast(data.message || 'Error updating package.');

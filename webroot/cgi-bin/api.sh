@@ -46,7 +46,7 @@ is_whitelisted() {
 touch "$WHITELIST_FILE"
 
 if [ "$ACTION" = "list" ]; then
-    # Return JSON containing all user-installed apps and their whitelist status
+    # Return JSON containing only apps requesting overlay permission and their status
     echo "{"
     echo "  \"status\": \"success\","
     echo "  \"apps\": ["
@@ -56,19 +56,31 @@ if [ "$ACTION" = "list" ]; then
     pm list packages -3 | cut -d: -f2 | sort | while read -r pkg; do
         [ -z "$pkg" ] && continue
         
-        if [ "$first" = true ]; then
-            first=false
-        else
-            echo ","
+        # Only include apps that declare/request the overlay permission
+        if dumpsys package "$pkg" 2>/dev/null | grep -q "android.permission.SYSTEM_ALERT_WINDOW"; then
+            if [ "$first" = true ]; then
+                first=false
+            else
+                echo ","
+            fi
+            
+            # Check if whitelisted in our module
+            if is_whitelisted "$pkg"; then
+                whitelisted="true"
+            else
+                whitelisted="false"
+            fi
+            
+            # Check if currently active/enabled in AppOps
+            op_status=$(appops get "$pkg" SYSTEM_ALERT_WINDOW 2>/dev/null)
+            if echo "$op_status" | grep -qE "ignore|deny"; then
+                enabled="false"
+            else
+                enabled="true"
+            fi
+            
+            echo "    { \"package\": \"$pkg\", \"whitelisted\": $whitelisted, \"enabled\": $enabled }"
         fi
-        
-        if is_whitelisted "$pkg"; then
-            whitelisted="true"
-        else
-            whitelisted="false"
-        fi
-        
-        echo "    { \"package\": \"$pkg\", \"whitelisted\": $whitelisted }"
     done
     
     echo "  ]"
