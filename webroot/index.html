@@ -348,10 +348,46 @@
         const authError = document.getElementById('auth-error');
         let allApps = [];
 
-        // Check authentication state in sessionStorage on load
+        // Check authentication state in sessionStorage with 30s inactivity check
         function getStoredPassword() {
-            return sessionStorage.getItem('familylock_pw') || '';
+            const pw = sessionStorage.getItem('familylock_pw') || '';
+            const lastActive = sessionStorage.getItem('familylock_last_active') || '0';
+            if (pw && (Date.now() - parseInt(lastActive) > 30000)) {
+                // Expired
+                sessionStorage.removeItem('familylock_pw');
+                sessionStorage.removeItem('familylock_last_active');
+                return '';
+            }
+            return pw;
         }
+
+        // Reset the inactivity timer on user action
+        function resetActiveTimer() {
+            if (sessionStorage.getItem('familylock_pw')) {
+                sessionStorage.setItem('familylock_last_active', Date.now().toString());
+            }
+        }
+
+        // Monitor activity events to keep the session alive up to 30s
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(evt => {
+            document.addEventListener(evt, resetActiveTimer, { passive: true });
+        });
+
+        // Background checker to log out if inactive for more than 30s
+        setInterval(() => {
+            const pw = sessionStorage.getItem('familylock_pw');
+            if (pw) {
+                const lastActive = parseInt(sessionStorage.getItem('familylock_last_active') || '0');
+                if (Date.now() - lastActive > 30000) {
+                    sessionStorage.removeItem('familylock_pw');
+                    sessionStorage.removeItem('familylock_last_active');
+                    passwordInput.value = '';
+                    authOverlay.style.display = 'flex';
+                    appContainer.innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+                    showToast('Session expired. Please log in again.');
+                }
+            }
+        }, 1000);
 
         // Fetch installed packages on load
         async function fetchApps() {
@@ -365,12 +401,14 @@
                 const response = await fetch(`/cgi-bin/api.sh?action=list&pw=${encodeURIComponent(pw)}`);
                 const data = await response.json();
                 if (data.status === 'success') {
+                    resetActiveTimer(); // Initialize timer
                     authOverlay.style.display = 'none';
                     allApps = data.apps;
                     renderApps(allApps);
                 } else {
                     // Stored password was invalid, clear and show overlay
                     sessionStorage.removeItem('familylock_pw');
+                    sessionStorage.removeItem('familylock_last_active');
                     authOverlay.style.display = 'flex';
                     showError('Unauthorized access.');
                 }
@@ -395,6 +433,7 @@
                 
                 if (data.status === 'success') {
                     sessionStorage.setItem('familylock_pw', pw);
+                    sessionStorage.setItem('familylock_last_active', Date.now().toString());
                     authOverlay.style.display = 'none';
                     allApps = data.apps;
                     renderApps(allApps);
