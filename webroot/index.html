@@ -304,6 +304,18 @@
     </style>
 </head>
 <body>
+    <!-- Security Auth Overlay -->
+    <div id="auth-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #08090b; display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 24px;">
+        <div style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 18px; padding: 32px 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; text-align: center; backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);">
+            <div style="font-size: 48px;">🔒</div>
+            <h2 style="font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #f3f4f6 30%, #a1a1aa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Security Verification</h2>
+            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">This control panel is password protected. Please enter the parental password to access.</p>
+            <input type="password" id="password-input" placeholder="Enter password" style="width: 100%; padding: 14px; background-color: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-primary); text-align: center; font-size: 16px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='var(--border-color)'">
+            <button id="auth-btn" style="width: 100%; padding: 14px; background-color: var(--accent-color); border: none; border-radius: 12px; color: white; font-weight: 600; font-size: 15px; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='var(--accent-color)'">Unlock Panel</button>
+            <p id="auth-error" style="color: var(--danger-color); font-size: 13px; display: none; margin-top: -8px; font-weight: 500;">❌ Incorrect password. Please try again.</p>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <h1>Family Lock Cleanup</h1>
@@ -330,18 +342,37 @@
         const appContainer = document.getElementById('app-container');
         const searchInput = document.getElementById('search');
         const toast = document.getElementById('toast');
+        const authOverlay = document.getElementById('auth-overlay');
+        const passwordInput = document.getElementById('password-input');
+        const authBtn = document.getElementById('auth-btn');
+        const authError = document.getElementById('auth-error');
         let allApps = [];
+
+        // Check authentication state in sessionStorage on load
+        function getStoredPassword() {
+            return sessionStorage.getItem('familylock_pw') || '';
+        }
 
         // Fetch installed packages on load
         async function fetchApps() {
+            const pw = getStoredPassword();
+            if (!pw) {
+                authOverlay.style.display = 'flex';
+                return;
+            }
+            
             try {
-                const response = await fetch('/cgi-bin/api.sh?action=list');
+                const response = await fetch(`/cgi-bin/api.sh?action=list&pw=${encodeURIComponent(pw)}`);
                 const data = await response.json();
                 if (data.status === 'success') {
+                    authOverlay.style.display = 'none';
                     allApps = data.apps;
                     renderApps(allApps);
                 } else {
-                    showError('Failed to fetch applications.');
+                    // Stored password was invalid, clear and show overlay
+                    sessionStorage.removeItem('familylock_pw');
+                    authOverlay.style.display = 'flex';
+                    showError('Unauthorized access.');
                 }
             } catch (err) {
                 console.error(err);
@@ -349,19 +380,51 @@
             }
         }
 
+        // Handle Unlock Click
+        async function handleAuth() {
+            const pw = passwordInput.value;
+            if (!pw) return;
+            
+            authBtn.disabled = true;
+            authBtn.textContent = 'Verifying...';
+            authError.style.display = 'none';
+            
+            try {
+                const response = await fetch(`/cgi-bin/api.sh?action=list&pw=${encodeURIComponent(pw)}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    sessionStorage.setItem('familylock_pw', pw);
+                    authOverlay.style.display = 'none';
+                    allApps = data.apps;
+                    renderApps(allApps);
+                } else {
+                    authError.style.display = 'block';
+                    passwordInput.value = '';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Connection error occurred.');
+            } finally {
+                authBtn.disabled = false;
+                authBtn.textContent = 'Unlock Panel';
+            }
+        }
+
+        authBtn.addEventListener('click', handleAuth);
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAuth();
+        });
+
         // Get readable app name from package name
         function getAppLabel(pkg) {
-            // Remove common prefixes and clean up
             let parts = pkg.split('.');
             let name = parts[parts.length - 1];
             if (name === 'android' && parts.length > 1) {
                 name = parts[parts.length - 2];
             }
-            // Capitalize
             name = name.charAt(0).toUpperCase() + name.slice(1);
-            // Replace dashes/underscores
             name = name.replace(/[-_]/g, ' ');
-            // Special mappings
             if (pkg.includes('com.zing.zalo')) return 'Zalo';
             if (pkg.includes('com.vng.playtogether')) return 'Play Together';
             if (pkg.includes('com.topjohnwu.magisk')) return 'Magisk';
@@ -415,24 +478,24 @@
         // Toggle whitelist action
         async function toggleApp(packageName, checkbox) {
             checkbox.disabled = true;
+            const pw = getStoredPassword();
             try {
-                const response = await fetch(`/cgi-bin/api.sh?action=toggle&package=${packageName}`);
+                const response = await fetch(`/cgi-bin/api.sh?action=toggle&package=${packageName}&pw=${encodeURIComponent(pw)}`);
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    // Update local list state
                     const app = allApps.find(a => a.package === packageName);
                     if (app) {
                         app.whitelisted = (data.action === 'added');
                     }
                     showToast(`${getAppLabel(packageName)} ${data.action === 'added' ? 'added to Whitelist' : 'removed from Whitelist'}`);
                 } else {
-                    checkbox.checked = !checkbox.checked; // Revert switch UI
+                    checkbox.checked = !checkbox.checked;
                     showToast(data.message || 'Error updating package.');
                 }
             } catch (err) {
                 console.error(err);
-                checkbox.checked = !checkbox.checked; // Revert switch UI
+                checkbox.checked = !checkbox.checked;
                 showToast('Failed to connect to system API.');
             } finally {
                 checkbox.disabled = false;

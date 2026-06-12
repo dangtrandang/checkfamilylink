@@ -7,9 +7,18 @@ echo "Access-Control-Allow-Origin: *"
 echo "Cache-Control: no-cache, no-store, must-revalidate"
 echo ""
 
-# Parse QUERY_STRING parameters (e.g. action=list or action=toggle&package=com.zing.zalo)
+# Parse QUERY_STRING parameters (e.g. action=list&pw=meocon0301)
 ACTION=$(echo "$QUERY_STRING" | grep -oE "action=[a-zA-Z0-9_]+" | cut -d= -f2)
 PACKAGE=$(echo "$QUERY_STRING" | grep -oE "package=[a-zA-Z0-9._]+" | cut -d= -f2)
+PW=$(echo "$QUERY_STRING" | grep -oE "pw=[a-zA-Z0-9_]+" | cut -d= -f2)
+
+if [ "$PW" != "meocon0301" ]; then
+    echo "{"
+    echo "  \"status\": \"error\","
+    echo "  \"message\": \"Unauthorized: Invalid password\""
+    echo "}"
+    exit 0
+fi
 
 WHITELIST_FILE="/data/adb/familylock_whitelist.txt"
 
