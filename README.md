@@ -1,28 +1,24 @@
 # Magisk Module: Family Link Lock Cleanup
 
-Đây là một Magisk Module hoàn chỉnh dành cho các thiết bị Android đã root, nhằm khắc phục triệt để lỗ hổng hiển thị cửa sổ nổi, bong bóng chat (bubble), và các tác vụ lách khóa (ví dụ: chạy app thông qua Xiaomi Game Turbo) khi Google Family Link thực hiện khóa thiết bị (khóa giờ ngủ, hết giới hạn thời gian hàng ngày, hoặc cha mẹ khóa thủ công).
+Đây là một Magisk Module hoàn chỉnh dành cho các thiết bị Android đã root (đặc biệt tương thích tốt với MIUI/HyperOS), nhằm ngăn chặn trẻ lách luật đếm giờ sử dụng ứng dụng của Google Family Link bằng các thủ thuật hiển thị cửa sổ nổi, bong bóng chat (bubble) hoặc các lớp vẽ đè màn hình (overlay).
 
 ---
 
 ## Tính năng nổi bật
 
 - **Khởi động tự động**: Tự khởi động ngầm sau khi thiết bị boot hoàn tất dưới quyền root.
-- **Khóa cứng bong bóng chat và cửa sổ nổi (MIUI/HyperOS)**: 
-  Để tránh việc con lách luật đếm giờ 15 phút của Zalo bằng cách nhắn tin qua bong bóng chat hoặc cửa sổ nổi (do Android/MIUI không tính thời gian vào app khi dùng cửa sổ nổi), module áp dụng khóa kép cực kỳ triệt để:
-  1. Vô hiệu hóa bong bóng chat toàn hệ thống (`notification_bubbles = 0`).
-  2. Vô hiệu hóa quyền vẽ lên ứng dụng khác/cửa sổ nổi (`SYSTEM_ALERT_WINDOW`) đối với tất cả ứng dụng ngoài Whitelist.
-  3. Khóa cứng các quyền cửa sổ nổi tùy biến của riêng hệ điều hành MIUI/HyperOS (AppOps `10020` và `10021`).
-  4. **Giám sát thời gian thực (Real-time Enforcer)**: Module chạy một tiến trình ngầm kiểm tra mỗi 5 giây. Nếu trẻ cố tình truy cập vào Cài đặt để bật lại quyền cửa sổ nổi hoặc đồng ý cấp lại quyền vẽ khi app yêu cầu, tiến trình ngầm sẽ ngay lập tức phát hiện, tự động **thu hồi lại quyền về trạng thái khóa (`ignore`) và lập tức tắt ứng dụng đó (`force-stop`)** để đóng ngay bong bóng chat đang hiển thị.
-  Điều này triệt tiêu hoàn toàn khả năng Zalo hiển thị bong bóng tròn trên màn hình, buộc con phải mở trực tiếp Zalo dưới dạng toàn màn hình để nhắn tin, giúp Family Link đếm giờ chuẩn xác 100%. Khi cha mẹ đưa một ứng dụng vào Whitelist qua Web UI, quyền cửa sổ nổi sẽ được tự động khôi phục về mặc định ngay lập tức.
-- **Cơ chế tự sửa lỗi (Self-Healing Watcher)**: Kết hợp State Machine và debounce thời gian (> 10s). Nếu lỡ nhịp log mở khóa trước đó khiến trạng thái bị lệch, lần khóa tiếp theo vẫn kích hoạt dọn dẹp bình thường, không lo bị kẹt trạng thái.
-- **Hệ thống khóa kép bảo mật cao (Double-Layer Lock)**:
-  Khi thiết bị khóa, tất cả các ứng dụng người dùng cài thêm (trừ danh sách được phép) sẽ bị:
-  1. Tắt hoàn toàn (`am force-stop`).
-  2. Đóng băng ứng dụng (`pm suspend`): Làm xám icon ngoài màn hình chính và chặn đứng mọi nỗ lực khởi chạy ứng dụng từ Game Turbo hoặc cửa sổ nổi.
-  3. Tường lửa cấp nhân (`iptables` / `ip6tables`): Cấm mọi kết nối internet đi ra từ mã định danh (UID) của ứng dụng đó trên tất cả profile người dùng (hỗ trợ đầy đủ cả tài khoản chính và Ứng dụng kép/Dual Apps).
-- **Giữ kết nối mạng cho máy**: Điện thoại của con vẫn kết nối Wi-Fi/Mobile Data bình thường cho các dịch vụ hệ thống (như Google Play Services), giúp **cha mẹ vẫn có thể bấm Mở khóa từ xa** trên app điện thoại của mình. Chỉ các app bị khóa mới bị cắt mạng.
-- **Trang quản trị Web UI trực quan**: Chạy một web server siêu nhẹ (sử dụng `busybox httpd` có sẵn của Magisk) tại cổng `8080` (tiêu hao dưới 2MB RAM và 0% CPU khi không sử dụng).
-- **Lối tắt ngoài màn hình (PWA Shortcut)**: Chrome -> "Thêm vào màn hình chính" tạo ra một icon app tiện lợi ngoài launcher để quản lý whitelist chỉ với 1 chạm.
+- **Trang quản trị Web UI bảo mật**: Chạy một web server siêu nhẹ (sử dụng `busybox httpd` có sẵn của Magisk) tại cổng `8080`. 
+  - Yêu cầu mật khẩu truy cập: **`meocon0301`** để bảo mật tránh trẻ tự ý chỉnh sửa.
+  - Hỗ trợ tạo lối tắt ngoài màn hình (PWA Shortcut) trên Chrome bằng cách chọn "Thêm vào màn hình chính" (Add to Home screen) để quản lý chỉ với 1 chạm.
+- **Quản lý quyền vẽ đè (Overlay Permission Manager)**:
+  - Tự động quét và liệt kê **chỉ những ứng dụng bên thứ 3** có yêu cầu quyền vẽ trên ứng dụng khác (`SYSTEM_ALERT_WINDOW`).
+  - Hiển thị trạng thái hoạt động trực tiếp của từng ứng dụng với nhãn trực quan: `🟢 Active` (Được phép vẽ) / `🔴 Blocked` (Đã chặn vẽ).
+  - Tích hợp công tắc (Toggle Switch) cho phép cha mẹ bật/tắt quyền vẽ đè của từng app ngay trên Web UI.
+- **Giám sát thời gian thực (Real-time Enforcer)**: 
+  - Module chạy một tiến trình ngầm kiểm tra mỗi **5 giây**. 
+  - Nếu trẻ cố tình truy cập vào Cài đặt để bật lại quyền vẽ hoặc đồng ý cấp lại quyền vẽ khi app yêu cầu, tiến trình ngầm sẽ ngay lập tức phát hiện, tự động **thu hồi lại quyền về trạng thái khóa (`ignore`) và lập tức tắt ứng dụng đó (`force-stop`)** để đóng ngay bong bóng chat đang hiển thị.
+  - Khi cha mẹ cho phép ứng dụng qua Web UI, quyền vẽ đè sẽ được tự động khôi phục về mặc định ngay lập tức.
+- **Gỡ cài đặt sạch sẽ**: Khi gỡ module qua app Magisk, script `uninstall.sh` sẽ tự động khôi phục toàn bộ cấu hình AppOps về mặc định ban đầu và dọn sạch các file tạm trên máy.
 
 ---
 
@@ -31,15 +27,15 @@
 ```text
 checkfamilylink/
 ├── module.prop         # Thông tin chi tiết của module (tên, phiên bản, tác giả...)
-├── service.sh          # Script chạy ngầm chính: Khởi động Web Server và lắng nghe logcat
-├── cleanup.sh          # Trình xử lý khóa: Đưa về Home, tắt app, đóng băng, cấm bong bóng và chặn mạng app
-├── unlock.sh           # Trình xử lý mở khóa: Rã đông app và gỡ chặn mạng tường lửa
+├── service.sh          # Script chạy ngầm chính: Khởi động Web Server và chạy vòng lặp enforcer 5s
 ├── post-fs-data.sh     # Hook chạy sớm lúc boot (ghi log kiểm tra hệ thống)
-├── uninstall.sh        # Khôi phục bong bóng chat (notification_bubbles = 1) và dọn dẹp cấu hình khi gỡ module
+├── uninstall.sh        # Khôi phục quyền vẽ đè và dọn dẹp cấu hình khi gỡ module
+├── cleanup.sh          # (Đã lược bỏ logic cũ) Script stub để tương thích ngược
+├── unlock.sh           # (Đã lược bỏ logic cũ) Script stub để tương thích ngược
 ├── webroot/
-│   ├── index.html      # Giao diện Web UI Dark Mode tinh tế để bật/tắt Whitelist
+│   ├── index.html      # Giao diện Web UI Dark Mode tinh tế để nhập pass và bật/tắt chặn vẽ đè
 │   └── cgi-bin/
-│       └── api.sh      # CGI API giao tiếp trực tiếp với hệ thống để đọc/ghi cấu hình
+│       └── api.sh      # CGI API nhận request để quét danh sách app và thực hiện bật/tắt AppOps
 └── README.md           # Tài liệu hướng dẫn sử dụng tiếng Việt này
 ```
 
@@ -47,52 +43,39 @@ checkfamilylink/
 
 ## Hướng dẫn sử dụng Giao diện quản trị (Web UI)
 
-Mặc định khi khóa máy, **tất cả ứng dụng do người dùng cài thêm** (như Zalo, TikTok, Facebook, Game...) sẽ bị khóa và chặn mạng hoàn toàn. Để cho phép một app học tập hoặc liên lạc khẩn cấp hoạt động bình thường khi khóa máy:
+Để cho phép hoặc cấm một ứng dụng (ví dụ: Zalo) sử dụng bong bóng chat / cửa sổ nổi:
 
 1. **Truy cập trang quản trị**:
-   Mở trình duyệt Chrome trên điện thoại của con và truy cập địa chỉ: `http://localhost:8080`
-2. **Thêm icon App ngoài màn hình chính**:
-   - Tại trang Web UI trên Chrome, nhấn vào **Menu 3 chấm** ở góc trên bên phải.
-   - Chọn **"Thêm vào màn hình chính"** (Add to Home screen).
-   - Chrome sẽ tạo một biểu tượng App tiện lợi ngoài màn hình chính. Bạn có thể mở trực tiếp từ đây để quản lý mà không cần gõ link nữa.
-3. **Bật/Tắt ứng dụng được phép**:
-   - Sử dụng thanh tìm kiếm để tìm nhanh ứng dụng.
-   - Tích chọn bật (Switch) bên cạnh app để đưa app đó vào Whitelist (Cho phép chạy và có mạng bình thường khi khóa).
-   - Tắt tích chọn để cấm app hoạt động khi khóa.
+   Mở trình duyệt Chrome trên điện thoại của trẻ và truy cập địa chỉ: `http://localhost:8080`
+2. **Xác thực mật khẩu**:
+   Nhập mật khẩu truy cập: **`meocon0301`**
+3. **Quản lý ứng dụng**:
+   - Web UI sẽ hiển thị danh sách các app yêu cầu quyền vẽ đè.
+   - Gạt công tắc sang **Bật** (xanh) để đưa app đó vào Whitelist (Cho phép app sử dụng bong bóng chat/cửa sổ nổi bình thường).
+   - Gạt công tắc sang **Tắt** (xám) để cấm app sử dụng bong bóng chat/cửa sổ nổi. Tiến trình ngầm sẽ tự động khóa và tắt app nếu trẻ cố tình bật lại.
 
-*Cấu hình Whitelist được lưu động tại file: `/data/adb/familylock_whitelist.txt`*
+*Cấu hình Whitelist được lưu tại file: `/data/adb/familylock_whitelist.txt`*
 
 ---
 
-## Hướng dẫn kiểm tra Log hoạt động
+## Hướng dẫn cập nhật file nhanh (Không cần Flash lại module)
 
-Bạn có thể theo dõi xem module có hoạt động chính xác hay không bằng cách kết nối thiết bị với máy tính và chạy lệnh ADB:
+Khi bạn muốn cập nhật giao diện `index.html` hoặc API `api.sh` mà không muốn mất thời gian đóng gói ZIP và cài đặt lại từ đầu:
 
-```bash
-adb shell "logcat | grep FamilyLockModule"
-```
-
-### Các log sự kiện chính:
-- **Khi khởi động máy**:
-  `FamilyLockModule: Module service started. Monitoring logcat...`
-  `FamilyLockModule: Starting Web UI server on port 8080...`
-  `FamilyLockModule: Disabling notification bubbles globally...`
-- **Khi kích hoạt khóa máy (Lock Now / Bedtime / Hết giờ)**:
-  `FamilyLockModule: MATCH FOUND: locking device`
-  `FamilyLockModule: Transition to LOCKED state`
-  `FamilyLockModule: FamilyLockModule: LOCK DETECTED`
-  `FamilyLockModule: FamilyLockModule: CLEANUP START`
-  `FamilyLockModule: Stopping and suspending: com.zing.zalo`
-  `FamilyLockModule: FamilyLockModule: CLEANUP COMPLETE`
-- **Khi mở khóa thiết bị**:
-  `FamilyLockModule: MATCH FOUND: unlocking device`
-  `FamilyLockModule: Transition to UNLOCKED state`
-  `FamilyLockModule: FamilyLockModule: UNLOCK DETECTED`
-  `FamilyLockModule: Unsuspending and restoring internet access for user applications...`
+1. Copy file từ máy tính vào thư mục tạm của điện thoại qua ADB:
+   ```bash
+   adb push webroot/index.html /data/local/tmp/index_new.html
+   adb push webroot/cgi-bin/api.sh /data/local/tmp/api_new.sh
+   ```
+2. Chạy lệnh copy đè vào thư mục module Magisk bằng quyền root:
+   ```bash
+   adb shell "/sbin/su -c 'cp /data/local/tmp/index_new.html /data/adb/modules/familylink-cleanup/webroot/index.html && cp /data/local/tmp/api_new.sh /data/adb/modules/familylink-cleanup/webroot/cgi-bin/api.sh && chmod 755 /data/adb/modules/familylink-cleanup/webroot/cgi-bin/api.sh'"
+   ```
+3. Mở Chrome trên điện thoại và **tải lại trang (Reload)**. Thay đổi sẽ có hiệu lực ngay lập tức.
 
 ---
 
-## Cài đặt
+## Hướng dẫn cài đặt thủ công lần đầu
 
 1. Nén toàn bộ thư mục `checkfamilylink` thành file ZIP (đảm bảo file `module.prop` nằm ở thư mục gốc của file ZIP):
    ```bash
