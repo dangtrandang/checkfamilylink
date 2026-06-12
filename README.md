@@ -12,6 +12,7 @@
   1. Vô hiệu hóa bong bóng chat toàn hệ thống (`notification_bubbles = 0`).
   2. Vô hiệu hóa quyền vẽ lên ứng dụng khác/cửa sổ nổi (`SYSTEM_ALERT_WINDOW`) đối với tất cả ứng dụng ngoài Whitelist.
   3. Khóa cứng các quyền cửa sổ nổi tùy biến của riêng hệ điều hành MIUI/HyperOS (AppOps `10020` và `10021`).
+  4. **Giám sát thời gian thực (Real-time Enforcer)**: Module chạy một tiến trình ngầm kiểm tra mỗi 5 giây. Nếu trẻ cố tình truy cập vào Cài đặt để bật lại quyền cửa sổ nổi hoặc đồng ý cấp lại quyền vẽ khi app yêu cầu, tiến trình ngầm sẽ ngay lập tức phát hiện, tự động **thu hồi lại quyền về trạng thái khóa (`ignore`) và lập tức tắt ứng dụng đó (`force-stop`)** để đóng ngay bong bóng chat đang hiển thị.
   Điều này triệt tiêu hoàn toàn khả năng Zalo hiển thị bong bóng tròn trên màn hình, buộc con phải mở trực tiếp Zalo dưới dạng toàn màn hình để nhắn tin, giúp Family Link đếm giờ chuẩn xác 100%. Khi cha mẹ đưa một ứng dụng vào Whitelist qua Web UI, quyền cửa sổ nổi sẽ được tự động khôi phục về mặc định ngay lập tức.
 - **Cơ chế tự sửa lỗi (Self-Healing Watcher)**: Kết hợp State Machine và debounce thời gian (> 10s). Nếu lỡ nhịp log mở khóa trước đó khiến trạng thái bị lệch, lần khóa tiếp theo vẫn kích hoạt dọn dẹp bình thường, không lo bị kẹt trạng thái.
 - **Hệ thống khóa kép bảo mật cao (Double-Layer Lock)**:

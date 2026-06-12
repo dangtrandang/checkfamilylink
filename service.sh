@@ -77,6 +77,59 @@ for pkg in $packages; do
     fi
 done
 
+# Start background overlay/popup enforcer loop to prevent users/apps from manually granting/enabling overlay permissions
+(
+    while true; do
+        sleep 5
+        
+        # Read whitelist
+        EXCLUDED_PACKAGES="com.google.android.gms com.google.android.apps.kids.familylinkhelper com.miui.home com.familylock.module com.android.vending com.google.android.gsf"
+        WHITELIST_FILE="/data/adb/familylock_whitelist.txt"
+        if [ -f "$WHITELIST_FILE" ]; then
+            while read -r line; do
+                line=$(echo "$line" | xargs)
+                [ -z "$line" ] && continue
+                echo "$line" | grep -q "^#" && continue
+                EXCLUDED_PACKAGES="$EXCLUDED_PACKAGES $line"
+            done < "$WHITELIST_FILE"
+        fi
+        
+        # Query currently allowed overlay permissions
+        allowed_apps=$(appops query-op SYSTEM_ALERT_WINDOW allow 2>/dev/null)
+        allowed_apps="$allowed_apps $(appops query-op 10020 allow 2>/dev/null)"
+        allowed_apps="$allowed_apps $(appops query-op 10021 allow 2>/dev/null)"
+        
+        # Sort and deduplicate
+        unique_apps=$(echo $allowed_apps | tr ' ' '\n' | sort -u)
+        
+        for pkg in $unique_apps; do
+            [ -z "$pkg" ] && continue
+            
+            # Check if it is a user app installed in /data
+            if pm path "$pkg" 2>/dev/null | grep -q "^package:/data/"; then
+                # Check exclusion list
+                exclude=false
+                for expkg in $EXCLUDED_PACKAGES; do
+                    if [ "$pkg" = "$expkg" ]; then
+                        exclude=true
+                        break
+                    fi
+                done
+                
+                if [ "$exclude" = false ]; then
+                    log -t "$TAG" "Auto-enforcing overlay block on user app: $pkg"
+                    appops set "$pkg" SYSTEM_ALERT_WINDOW ignore >/dev/null 2>&1
+                    appops set "$pkg" 10020 ignore >/dev/null 2>&1
+                    appops set "$pkg" 10021 ignore >/dev/null 2>&1
+                    
+                    # Force stop immediately to dismiss any active floating windows/bubbles
+                    am force-stop "$pkg" >/dev/null 2>&1
+                fi
+            fi
+        done
+    done
+) &
+
 # Reset boot state: unsuspend all apps and flush rules to prevent lockout
 if [ -f "$MODDIR/unlock.sh" ]; then
     log -t "$TAG" "Initializing boot state: unsuspending all applications..."
