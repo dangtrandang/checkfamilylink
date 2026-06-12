@@ -1,4 +1,4 @@
-# Module Magisk: Family Link Lock Cleanup
+# Magisk Module: Family Link Lock Cleanup
 
 Đây là một Magisk Module hoàn chỉnh dành cho các thiết bị Android đã root, nhằm khắc phục triệt để lỗ hổng hiển thị cửa sổ nổi, bong bóng chat (bubble), và các tác vụ lách khóa (ví dụ: chạy app thông qua Xiaomi Game Turbo) khi Google Family Link thực hiện khóa thiết bị (khóa giờ ngủ, hết giới hạn thời gian hàng ngày, hoặc cha mẹ khóa thủ công).
 
@@ -7,13 +7,13 @@
 ## Tính năng nổi bật
 
 - **Khởi động tự động**: Tự khởi động ngầm sau khi thiết bị boot hoàn tất dưới quyền root.
-- **Bộ lọc log chính xác**: Lắng nghe logcat và chỉ bắt sự kiện khi khớp đồng thời cả `TimeLimitCheckingIntent` và `locking device` / `unlocking device` (chống nhận diện sai từ các log văn bản thông thường).
-- **State Machine chống lặp**: Duy trì trạng thái khóa (`LOCKED` / `UNLOCKED`) tại file `/data/adb/familylock_state`. Lệnh dọn dẹp chỉ kích hoạt đúng 1 lần khi chuyển giao trạng thái, loại bỏ hoàn toàn việc lặp lại thao tác khi Google Play Services gửi liên tiếp nhiều log khóa trong vài giây.
+- **Vô hiệu hóa bong bóng chat vĩnh viễn**: Để tránh việc con lách luật đếm giờ 15 phút của Zalo bằng cách nhắn tin qua bong bóng chat SystemUI (Android không tính thời gian vào app khi dùng bong bóng), module sẽ khóa cứng tính năng bong bóng chat trên toàn hệ thống (`notification_bubbles = 0`). Điều này buộc con phải mở trực tiếp Zalo để nhắn tin, giúp Family Link đếm giờ chuẩn xác 100%.
+- **Cơ chế tự sửa lỗi (Self-Healing Watcher)**: Kết hợp State Machine và debounce thời gian (> 10s). Nếu lỡ nhịp log mở khóa trước đó khiến trạng thái bị lệch, lần khóa tiếp theo vẫn kích hoạt dọn dẹp bình thường, không lo bị kẹt trạng thái.
 - **Hệ thống khóa kép bảo mật cao (Double-Layer Lock)**:
   Khi thiết bị khóa, tất cả các ứng dụng người dùng cài thêm (trừ danh sách được phép) sẽ bị:
   1. Tắt hoàn toàn (`am force-stop`).
-  2. Đóng băng ứng dụng (`pm suspend`): Làm xám icon ngoài màn hình chính và chặn đứng mọi nỗ lực khởi chạy ứng dụng từ Game Turbo hoặc các ứng dụng chạy đè/cửa sổ nổi.
-  3. Tường lửa cấp nhân (`iptables` / `ip6tables`): Cấm mọi kết nối internet đi ra từ mã định danh (UID) của ứng dụng đó.
+  2. Đóng băng ứng dụng (`pm suspend`): Làm xám icon ngoài màn hình chính và chặn đứng mọi nỗ lực khởi chạy ứng dụng từ Game Turbo hoặc cửa sổ nổi.
+  3. Tường lửa cấp nhân (`iptables` / `ip6tables`): Cấm mọi kết nối internet đi ra từ mã định danh (UID) của ứng dụng đó trên tất cả profile người dùng (hỗ trợ đầy đủ cả tài khoản chính và Ứng dụng kép/Dual Apps).
 - **Giữ kết nối mạng cho máy**: Điện thoại của con vẫn kết nối Wi-Fi/Mobile Data bình thường cho các dịch vụ hệ thống (như Google Play Services), giúp **cha mẹ vẫn có thể bấm Mở khóa từ xa** trên app điện thoại của mình. Chỉ các app bị khóa mới bị cắt mạng.
 - **Trang quản trị Web UI trực quan**: Chạy một web server siêu nhẹ (sử dụng `busybox httpd` có sẵn của Magisk) tại cổng `8080` (tiêu hao dưới 2MB RAM và 0% CPU khi không sử dụng).
 - **Lối tắt ngoài màn hình (PWA Shortcut)**: Chrome -> "Thêm vào màn hình chính" tạo ra một icon app tiện lợi ngoài launcher để quản lý whitelist chỉ với 1 chạm.
@@ -26,10 +26,10 @@
 checkfamilylink/
 ├── module.prop         # Thông tin chi tiết của module (tên, phiên bản, tác giả...)
 ├── service.sh          # Script chạy ngầm chính: Khởi động Web Server và lắng nghe logcat
-├── cleanup.sh          # Trình xử lý khóa: Đưa về Home, tắt app, đóng băng và chặn mạng app
+├── cleanup.sh          # Trình xử lý khóa: Đưa về Home, tắt app, đóng băng, cấm bong bóng và chặn mạng app
 ├── unlock.sh           # Trình xử lý mở khóa: Rã đông app và gỡ chặn mạng tường lửa
 ├── post-fs-data.sh     # Hook chạy sớm lúc boot (ghi log kiểm tra hệ thống)
-├── uninstall.sh        # Tự động dọn dẹp cấu hình và tắt Web Server khi gỡ cài đặt module
+├── uninstall.sh        # Khôi phục bong bóng chat (notification_bubbles = 1) và dọn dẹp cấu hình khi gỡ module
 ├── webroot/
 │   ├── index.html      # Giao diện Web UI Dark Mode tinh tế để bật/tắt Whitelist
 │   └── cgi-bin/
@@ -70,6 +70,7 @@ adb shell "logcat | grep FamilyLockModule"
 - **Khi khởi động máy**:
   `FamilyLockModule: Module service started. Monitoring logcat...`
   `FamilyLockModule: Starting Web UI server on port 8080...`
+  `FamilyLockModule: Disabling notification bubbles globally...`
 - **Khi kích hoạt khóa máy (Lock Now / Bedtime / Hết giờ)**:
   `FamilyLockModule: MATCH FOUND: locking device`
   `FamilyLockModule: Transition to LOCKED state`

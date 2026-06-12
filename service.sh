@@ -40,6 +40,10 @@ else
     log -t "$TAG" "Warning: webroot not found at $MODDIR/webroot"
 fi
 
+# Permanent Bubble Block: Disable notification bubbles globally on boot
+log -t "$TAG" "Disabling notification bubbles globally..."
+settings put secure notification_bubbles 0 >/dev/null 2>&1
+
 # Reset boot state: unsuspend all apps and flush rules to prevent lockout
 if [ -f "$MODDIR/unlock.sh" ]; then
     log -t "$TAG" "Initializing boot state: unsuspending all applications..."
@@ -49,6 +53,10 @@ fi
 log -t "$TAG" "Module service started. Monitoring logcat..."
 
 # Watcher Loop
+DEBOUNCE_DELAY=10
+LAST_LOCK_TIME=0
+LAST_UNLOCK_TIME=0
+
 while true; do
     log -t "$TAG" "Starting logcat watcher..."
     
@@ -59,7 +67,12 @@ while true; do
             if echo "$line" | grep -q "unlocking device"; then
                 log -t "$TAG" "MATCH FOUND: unlocking device"
                 CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "UNLOCKED")
-                if [ "$CURRENT_STATE" != "UNLOCKED" ]; then
+                current_time=$(date +%s)
+                time_diff=$((current_time - LAST_UNLOCK_TIME))
+                
+                # Self-healing: trigger unlock if out of sync, or if it's been more than 10s
+                if [ "$CURRENT_STATE" != "UNLOCKED" ] || [ "$time_diff" -ge "$DEBOUNCE_DELAY" ]; then
+                    LAST_UNLOCK_TIME=$current_time
                     echo "UNLOCKED" > "$STATE_FILE"
                     log -t "$TAG" "Transition to UNLOCKED state"
                     if [ -f "$MODDIR/unlock.sh" ]; then
@@ -72,7 +85,12 @@ while true; do
             elif echo "$line" | grep -q "locking device"; then
                 log -t "$TAG" "MATCH FOUND: locking device"
                 CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "UNLOCKED")
-                if [ "$CURRENT_STATE" != "LOCKED" ]; then
+                current_time=$(date +%s)
+                time_diff=$((current_time - LAST_LOCK_TIME))
+                
+                # Self-healing: trigger lock if out of sync, or if it's been more than 10s
+                if [ "$CURRENT_STATE" != "LOCKED" ] || [ "$time_diff" -ge "$DEBOUNCE_DELAY" ]; then
+                    LAST_LOCK_TIME=$current_time
                     echo "LOCKED" > "$STATE_FILE"
                     log -t "$TAG" "Transition to LOCKED state"
                     if [ -f "$MODDIR/cleanup.sh" ]; then
